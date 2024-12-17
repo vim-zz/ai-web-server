@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Registration Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-container">
+        <div class="chat-section">
+            <div id="chat-container">
+                <div id="chat-messages"></div>
+                <div id="input-container">
+                    <input type="text" id="chatInput" placeholder="Type your message...">
+                    <button id="sendButton">Send</button>
+                </div>
+            </div>
+        </div>
+        <div class="json-section">
+            <h3>Collected Information:</h3>
+            <pre id="json-display"></pre>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
