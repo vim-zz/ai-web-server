@@ -19,6 +19,7 @@ class ChatHandler:
             "workplace": None,
         }
         self.current_field = "name"
+        self.conversation_history = []
 
     def clean_user_input(self, field, value):
         """Clean user input based on field type."""
@@ -58,19 +59,44 @@ class ChatHandler:
 
         return value
 
-
     def handle_message(self, user_message):
         system_prompt = """
         You are a registration assistant. You need to collect: name, username, password, and workplace/school.
-        Currently collecting: {current_field}
-        Already collected: {collected}
+        Current field to collect: {current_field}
+        Current collected information: {collected}
 
-        Respond naturally and conversationally. Ask for one piece of information at a time.
-        For passwords, ensure they are at least 8 characters with numbers and special characters.
+        YOU MUST ALWAYS RESPOND WITH EXACTLY TWO PARTS:
+        1. A friendly conversational message
+        2. The JSON data in the next line
 
-        IMPORTANT: When the user provides valid information, start your response with "VALID:"
-        When the user asks questions or provides invalid input, respond normally without the "VALID:" prefix.
+        EXACT FORMAT REQUIRED:
+        <your conversation message>
+        {{"name": "value", "username": "value", "password": "value", "workplace": "value"}}
+
+        Example valid responses:
+        "Great! I'll set your username as banana12. Now, please create a strong password (at least 8 characters with numbers and special characters)."
+        {{"name": "Ofer", "username": "banana12", "password": null, "workplace": null}}
+
+        OR
+
+        "That username isn't valid. Please try another username."
+        {{"name": "Ofer", "username": null, "password": null, "workplace": null}}
+
+        Current field progression:
+        name -> username -> password -> workplace
+
+        Rules for conversation:
+        - Be friendly and natural
+        - Focus on collecting the CURRENT field only ({current_field})
+        - After collecting valid input, ask for the next field
+        - For passwords, ensure they are at least 8 characters with numbers and special characters
         """
+
+        # Create conversation context
+        conversation_context = []
+        for i in range(min(3, len(self.conversation_history))):
+            conversation_context.append(self.conversation_history[-(i+1)])
+        conversation_context.reverse()
 
         messages = [
             {
@@ -80,10 +106,24 @@ class ChatHandler:
                     collected=json.dumps(self.collected_info, indent=2),
                 ),
             },
+            # Add recent conversation history
+            *conversation_context,
+            # Add current user message
             {"role": "user", "content": user_message},
+            # Final reminder for AI
+            {
+                "role": "assistant",
+                "content": """Remember to respond with BOTH:
+1. Conversation message
+2. JSON data
+Example:
+"Your message here"
+{"json": "data"}"""
+            }
         ]
 
         try:
+            print(f"DEBUG to AI: {messages}")
             response = requests.post(
                 self.api_url,
                 headers=self.headers,
@@ -92,52 +132,64 @@ class ChatHandler:
 
             if response.status_code == 200:
                 ai_message = response.json()["choices"][0]["message"]["content"]
-                is_valid_response = ai_message.startswith("VALID:")
+                print(f"DEBUG from AI: {ai_message}")
 
-                # Remove the "VALID:" prefix from the message if it exists
-                display_message = ai_message[6:] if is_valid_response else ai_message
+                try:
+                    # If we only got JSON, add a default conversational message
+                    if ai_message.strip().startswith('{'):
+                        default_messages = {
+                            "username": "Great! Now please create a strong password (at least 8 characters with numbers and special characters).",
+                            "password": "Perfect! Finally, where do you work or study?",
+                            "workplace": "Thank you! Your registration is complete.",
+                            "name": "Great! Could you choose a username for your account?"
+                        }
+                        ai_message = f"{default_messages.get(self.current_field, 'Please continue with the registration.')}\n{ai_message}"
 
-                # Only update collected info if the AI confirms it's a valid response
-                if is_valid_response:
-                    if self.current_field == "name" and self.collected_info["name"] is None:
-                        cleaned_value = self.clean_user_input("name", user_message)
-                        if cleaned_value:
-                            self.collected_info["name"] = cleaned_value
+                    last_brace_start = ai_message.rindex('{')
+                    last_brace_end = ai_message.rindex('}') + 1
+                    collected_json = json.loads(ai_message[last_brace_start:last_brace_end])
+                    display_message = ai_message[:last_brace_start].strip()
+
+                    # Add to conversation history
+                    self.conversation_history.append({
+                        "role": "assistant",
+                        "content": display_message
+                    })
+
+                    if collected_json[self.current_field] is not None and collected_json[self.current_field] != self.collected_info[self.current_field]:
+                        self.collected_info = collected_json
+                        # Progress to next field
+                        if self.current_field == "name":
                             self.current_field = "username"
-
-                    elif (
-                        self.current_field == "username"
-                        and self.collected_info["username"] is None
-                    ):
-                        cleaned_value = self.clean_user_input("username", user_message)
-                        if cleaned_value:
-                            self.collected_info["username"] = cleaned_value
+                        elif self.current_field == "username":
                             self.current_field = "password"
-
-                    elif (
-                        self.current_field == "password"
-                        and self.collected_info["password"] is None
-                    ):
-                        if len(user_message) >= 8:
-                            self.collected_info["password"] = user_message
+                        elif self.current_field == "password":
                             self.current_field = "workplace"
-
-                    elif self.current_field == "workplace":
-                        cleaned_value = self.clean_user_input("workplace", user_message)
-                        if cleaned_value:
-                            self.collected_info["workplace"] = cleaned_value
+                        elif self.current_field == "workplace":
                             self.current_field = "completed"
 
-                # Check if registration is complete
-                registration_complete = self.current_field == "completed" and all(
-                    value is not None for value in self.collected_info.values()
-                )
+                    # Add user message to conversation history after processing
+                    self.conversation_history.append({
+                        "role": "user",
+                        "content": user_message
+                    })
 
-                return {
-                    "message": display_message,
-                    "collected_info": self.collected_info,
-                    "registration_complete": registration_complete,
-                }
+                    # Check if registration is complete
+                    registration_complete = all(value is not None for value in self.collected_info.values())
+
+                    return {
+                        "message": display_message,
+                        "collected_info": self.collected_info,
+                        "registration_complete": registration_complete,
+                    }
+
+                except (ValueError, json.JSONDecodeError) as e:
+                    print(f"Error processing AI response: {e}")
+                    return {
+                        "message": "Could you please provide the information requested?",
+                        "collected_info": self.collected_info,
+                        "registration_complete": False,
+                    }
 
             else:
                 return {
