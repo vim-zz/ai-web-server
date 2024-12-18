@@ -4,6 +4,34 @@ A simple web server with a centered text input interface built using Flask.
 
 ![Screenshot of the application](screenshot.png)
 
+## How It Works
+
+This project is like a smart registration form that uses AI to chat with users. Here are the main parts:
+
+1. **Web Interface** (`templates/index.html`, `static/styles.css`, `static/script.js`)
+   - Shows a chat window where you can type messages
+   - Displays the collected information in real-time
+   - Uses basic HTML, CSS for looks, and JavaScript to handle user input
+
+2. **Web Server** (`app.py`)
+   - Built with Flask (a simple Python web framework)
+   - Receives messages from the chat
+   - Sends responses back to the browser
+
+3. **Chat Handler** (`chat_handler.py`)
+   - 🤖 The brain of the application
+   - ✨ Talks to OpenAI's API (like having a smart robot helper)
+   - Keeps track of what information we've collected
+   - Makes sure we get all the required details (name, username, password, workplace)
+
+The cool part is how these pieces work together:
+1. You type a message
+2. JavaScript sends it to the Flask server
+3. The Chat Handler asks OpenAI what to say next
+4. The response comes back to your screen
+
+Think of it like a relay race where each part passes the information to the next!
+
 ## Prerequisites
 
 - Python 3.11 or higher
