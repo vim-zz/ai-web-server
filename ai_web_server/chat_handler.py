@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import re
+from textwrap import dedent
 
 
 class ChatHandler:
@@ -95,10 +96,21 @@ class ChatHandler:
         # Create conversation context
         conversation_context = []
         for i in range(min(3, len(self.conversation_history))):
-            conversation_context.append(self.conversation_history[-(i+1)])
+            conversation_context.append(self.conversation_history[-(i + 1)])
         conversation_context.reverse()
 
+        # The following structure creates a chat-like interaction where:
+        # 1. The `system` sets the rules (like a director)
+        # 2. The `user` and `assistant` take turns (like a conversation)
+        # 3. Previous messages provide context (like remembering what was said before)
+        # 4. Each role has a specific purpose in guiding the AI's behavior and responses
+
         messages = [
+            # SYSTEM role: Sets the behavior and rules for the AI
+            # - Like giving instructions to an actor before a play
+            # - Defines how the AI should behave, what it should do
+            # - Establishes the constraints and format requirements
+            # - Only appears once, at the start of the conversation
             {
                 "role": "system",
                 "content": system_prompt.format(
@@ -106,20 +118,33 @@ class ChatHandler:
                     collected=json.dumps(self.collected_info, indent=2),
                 ),
             },
-            # Add recent conversation history
+
+            # CONVERSATION HISTORY: Previous exchanges between assistant and user
+            # - Provides context from earlier in the conversation
+            # - Helps maintain coherent back-and-forth
+            # - Limited to last 3 messages to keep context relevant
             *conversation_context,
-            # Add current user message
+
+            # USER role: The current input from the human
+            # - Represents what the human is saying/asking right now
+            # - The message the AI needs to respond to
+            # - Can be a question, answer, or any input
             {"role": "user", "content": user_message},
-            # Final reminder for AI
+
+            # ASSISTANT role: Reminds the AI of its last instruction
+            # - Like a final reminder of how to format its response
+            # - Helps maintain consistency in responses
+            # - Can include examples of expected format
             {
                 "role": "assistant",
-                "content": """Remember to respond with BOTH:
-1. Conversation message
-2. JSON data
-Example:
-"Your message here"
-{"json": "data"}"""
-            }
+                "content": dedent("""Remember to respond with BOTH:
+                    1. Conversation message
+                    2. JSON data
+                    Example:
+                    "Your message here"
+                    {"json": "data"}
+                """),
+            },
         ]
 
         try:
@@ -127,7 +152,11 @@ Example:
             response = requests.post(
                 self.api_url,
                 headers=self.headers,
-                json={"model": "gpt-3.5-turbo", "messages": messages, "temperature": 0.7},
+                json={
+                    "model": "gpt-3.5-turbo",
+                    "messages": messages,
+                    "temperature": 0.7,
+                },
             )
 
             if response.status_code == 200:
@@ -136,27 +165,32 @@ Example:
 
                 try:
                     # If we only got JSON, add a default conversational message
-                    if ai_message.strip().startswith('{'):
+                    if ai_message.strip().startswith("{"):
                         default_messages = {
                             "username": "Great! Now please create a strong password (at least 8 characters with numbers and special characters).",
                             "password": "Perfect! Finally, where do you work or study?",
                             "workplace": "Thank you! Your registration is complete.",
-                            "name": "Great! Could you choose a username for your account?"
+                            "name": "Great! Could you choose a username for your account?",
                         }
                         ai_message = f"{default_messages.get(self.current_field, 'Please continue with the registration.')}\n{ai_message}"
 
-                    last_brace_start = ai_message.rindex('{')
-                    last_brace_end = ai_message.rindex('}') + 1
-                    collected_json = json.loads(ai_message[last_brace_start:last_brace_end])
+                    last_brace_start = ai_message.rindex("{")
+                    last_brace_end = ai_message.rindex("}") + 1
+                    collected_json = json.loads(
+                        ai_message[last_brace_start:last_brace_end]
+                    )
                     display_message = ai_message[:last_brace_start].strip()
 
                     # Add to conversation history
-                    self.conversation_history.append({
-                        "role": "assistant",
-                        "content": display_message
-                    })
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": display_message}
+                    )
 
-                    if collected_json[self.current_field] is not None and collected_json[self.current_field] != self.collected_info[self.current_field]:
+                    if (
+                        collected_json[self.current_field] is not None
+                        and collected_json[self.current_field]
+                        != self.collected_info[self.current_field]
+                    ):
                         self.collected_info = collected_json
                         # Progress to next field
                         if self.current_field == "name":
@@ -169,13 +203,14 @@ Example:
                             self.current_field = "completed"
 
                     # Add user message to conversation history after processing
-                    self.conversation_history.append({
-                        "role": "user",
-                        "content": user_message
-                    })
+                    self.conversation_history.append(
+                        {"role": "user", "content": user_message}
+                    )
 
                     # Check if registration is complete
-                    registration_complete = all(value is not None for value in self.collected_info.values())
+                    registration_complete = all(
+                        value is not None for value in self.collected_info.values()
+                    )
 
                     return {
                         "message": display_message,
