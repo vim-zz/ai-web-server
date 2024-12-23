@@ -4,11 +4,12 @@ import requests
 import re
 from textwrap import dedent
 
+MODEL = "llama-3.3-70b-versatile"
 
 class ChatHandler:
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.api_url = "https://api.openai.com/v1/chat/completions"
+        self.api_key = os.getenv("GROQ_API_KEY")
+        self.api_url = "https://api.groq.com/openai/v1/chat/completions"  # Changed to Groq API URL
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -153,7 +154,7 @@ class ChatHandler:
                 self.api_url,
                 headers=self.headers,
                 json={
-                    "model": "gpt-3.5-turbo",
+                    "model": MODEL,  # Changed to Groq's model
                     "messages": messages,
                     "temperature": 0.7,
                 },

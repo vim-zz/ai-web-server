@@ -47,8 +47,14 @@ cd ai-web-server
 ```
 
 2. Install uv (if not already installed)
+For MacOS:
 ```bash
 pip install uv
+```
+
+For Windows:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 3. Create a virtual environment
@@ -57,11 +63,21 @@ uv venv
 ```
 
 4. Activate the virtual environment
+For MacOS:
 ```bash
-# MacOS
 source .venv\scripts\activate
+```
 
-# Windows:
+For Windows:
+```powershell
+.venv\Scripts\activate
+```
+
+You might encounter an error about running scripts being disabled. If so, run the following command:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+# try activating the virtual environment again:
 .venv\Scripts\activate
 ```
 
@@ -70,21 +86,21 @@ source .venv\scripts\activate
 uv pip install -e .
 ```
 
-6. Set up your OpenAI API key:
+6. Set up your Groq API key:
 
    a. Get your API key:
-   - Go to [OpenAI's website](https://platform.openai.com/signup)
+   - Go to [Groq's website](https://console.groq.com/login)
    - Sign up for an account if you don't have one
-   - Navigate to [API Keys](https://platform.openai.com/api-keys)
-   - Click "Create new secret key"
+   - Navigate to [API Keys](https://console.groq.com/keys)
+   - Click "Create API key"
    - Copy your API key (make sure to save it as it won't be shown again)
 
    b. Add your API key to the `.env` file in the project root:
    ```
-   OPENAI_API_KEY=your_api_key_here
+   GROQ_API_KEY=your_api_key_here
    ```
 
-   Note: Replace `your_api_key_here` with your actual OpenAI API key
+   Note: Replace `your_api_key_here` with your actual API key
 
 7. Run the server
 ```bash
@@ -99,18 +115,4 @@ Once the server is running, open your web browser and navigate to `http://127.0.
 
 - Never commit your `.env` file to version control
 - Keep your API key secret and secure
-- The free tier of OpenAI's API has rate limits and usage limits
-- Monitor your API usage on OpenAI's dashboard to avoid unexpected charges
-
-## Troubleshooting
-
-If you encounter "Authentication Error" or similar:
-1. Double-check your API key in the `.env` file
-2. Ensure the `.env` file is in the correct location (project root)
-3. Make sure you activated the virtual environment
-4. Try restarting the server
-
-For more information about OpenAI API:
-- [OpenAI API Documentation](https://platform.openai.com/docs/introduction)
-- [API Keys Management](https://platform.openai.com/api-keys)
-- [Usage and Limits](https://platform.openai.com/docs/guides/rate-limits)
+- The free tier API has rate limits and usage limits
