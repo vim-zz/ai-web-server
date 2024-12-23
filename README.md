@@ -35,12 +35,13 @@ Think of it like a relay race where each part passes the information to the next
 ## Prerequisites
 
 - Python 3.11 or higher
-- Git
-- OpenAI API key
+- Groq API key
 
 ## Setup Instructions
 
-1. Clone the repository
+1. Clone or Download the repository
+
+Download as Zip from GitHub [ai-web-server](https://github.com/vim-zz/ai-web-server) or clone:
 ```bash
 git clone <repository-url>
 cd ai-web-server
